@@ -1,0 +1,101 @@
+#!/usr/bin/python
+import urllib.request
+import socket
+import json
+import bs4
+import argparse
+import distutils.dir_util
+import os
+import sys
+
+cmdOptParser = argparse.ArgumentParser(description='This is a Tieba Pic Crawler')
+cmdOptParser.add_argument('-t','--target',type=str,help='specify the target direcotry (default: creating a dir at pwd , named by thread title)')
+cmdOptParser.add_argument('uri',type=str,help='the uri of the Tieba thread')
+cmdOptParser.add_argument('-mp','--maxpage',type=str,help='maximum pages to crawl')
+cmdOptParser.add_argument('-l','--listout',type=str,help='output the url list of pics')
+cmdOptParser.add_argument('-p','--prefix',type=str,help='specify the prefix of pics (default:comic-)',default='comic-')
+
+def doImageDownload(imgSrcList,imgNamePrefix,targetDir):
+    distutils.dir_util.mkpath(targetDir)
+    picDigits = len(str(len(imgSrcList)))
+    for idx , imgUri in enumerate(imgSrcList):
+        fileNameWithPath = str(targetDir)+"/"+str(imgNamePrefix)+str(idx).zfill(picDigits)+".jpg"
+        print("Downloading #"+str(idx)+" :"+fileNameWithPath)
+        imageData = urllib.request.urlopen(imgUri).read()
+        imageFile = open(fileNameWithPath,'wb')
+        imageFile.write(imageData)
+        imageFile.close()
+
+def doListOutput(imgSrcList,logFileName):
+    logFile = open(str(logFileName),'w')
+    for idx , imgUri in enumerate(imgSrcList):
+        print(str(idx)+' '+str(imgUri))
+        logFile.write(str(idx)+' '+str(imgUri)+'\n')
+    logFile.close()
+    print("""You may try:" cat """+str(logFileName)+""" | while read n f; do wget "$f" -O "comic-$n.jpg"; done" for downloading .""")
+
+def getThreadInfo(threadUri,customMaxPage):
+    req = urllib.request.urlopen(threadUri)
+    soup = bs4.BeautifulSoup(req)
+    maxFloor = "".join(soup.find_all("span",class_="red")[0].contents)
+    #TODO : implement the download range defined by given num of max floors.
+    maxPage = "".join(soup.find_all("span",class_="red")[1].contents)
+    #TODO : implement the download range defined by given num of max page num.
+    tTile = "".join([ tCur["title"] for tCur in soup.find_all("h1",class_="core_title_txt")])
+
+    #in order to get only the OP's post , we need to get the user_id
+    uid = json.loads(soup.find("div","l_post")['data-field'])['author']['user_id']
+
+    imgSrcList = []
+
+    allPost = soup.find_all("div",class_="l_post")
+    for postCur in allPost :
+        if uid == json.loads(postCur['data-field'])['author']['user_id'] :
+            imgSrcList.extend( [image['src'] for image in postCur.find_all("img",class_="BDE_Image")] )
+
+    #imgSrcList = [ image["src"] for image in soup.find_all("img",class_="BDE_Image")]
+    #upper line of code is used to download all the pics from all the post
+
+    print("Only download till pg. #"+str(customMaxPage)+" .")
+    if customMaxPage != None :
+        if customMaxPage < maxPage :
+            for nP in list(range(2,int(customMaxPage)+1)) :
+                #list(range(2,2) will be null list , hence this won't be executed while there's only 1 page
+                #print(threadUri+"?pn="+str(nP))
+                req = urllib.request.urlopen(threadUri+"?pn="+str(nP))
+                soup = bs4.BeautifulSoup(req)
+                #imgSrcList.extend([ image["src"] for image in soup.find_all("img",class_="BDE_Image")])
+                allPost = soup.find_all("div",class_="l_post")
+                for postCur in allPost :
+                    if uid == json.loads(postCur['data-field'])['author']['user_id'] :
+                        imgSrcList.extend( [image['src'] for image in postCur.find_all("img",class_="BDE_Image")] )
+        else :
+            print("The maximum page you request is out of bound , which is : "+str(maxPage))
+            exit()
+    else :
+        for nP in list(range(2,int(maxPage)+1)) :
+            #list(range(2,2) will be null list , hence this won't be executed while there's only 1 page
+            #print(threadUri+"?pn="+str(nP))
+            req = urllib.request.urlopen(threadUri+"?pn="+str(nP))
+            soup = bs4.BeautifulSoup(req)
+            #imgSrcList.extend([ image["src"] for image in soup.find_all("img",class_="BDE_Image")])
+            allPost = soup.find_all("div",class_="l_post")
+            for postCur in allPost :
+                if uid == json.loads(postCur['data-field'])['author']['user_id'] :
+                    imgSrcList.extend( [image['src'] for image in postCur.find_all("img",class_="BDE_Image")] )
+    
+    #print(imgSrcList)
+
+    return tTile , imgSrcList
+
+
+if __name__ == '__main__' :
+    cmdArgs = cmdOptParser.parse_args()
+    threadTitle , imgList = getThreadInfo(cmdArgs.uri,cmdArgs.maxpage)
+    if cmdArgs.listout == None :
+        if cmdArgs.target == None :
+            doImageDownload(imgList,cmdArgs.prefix,threadTitle)
+        else :
+            doImageDownload(imgList,cmdArgs.prefix,cmdArgs.target)
+    else :
+        doListOutput(imgList,cmdArgs.listout) 
