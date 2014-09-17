@@ -11,7 +11,7 @@ cmdOptParser = argparse.ArgumentParser(description='This is a Tieba Pic Crawler'
 cmdOptParser.add_argument('-t','--target',type=str,help='specify the target direcotry (default: creating a dir at pwd , named by thread title)')
 cmdOptParser.add_argument('uri',type=str,help='the uri of the Tieba thread')
 cmdOptParser.add_argument('-mp','--max-page',type=str,help='maximum pages to crawl')
-cmdOptParser.add_argument('-fop','--follow-oringnal-post',type=str,help='maximum pages to crawl')
+cmdOptParser.add_argument('-fop','--follow-oringnal-post',nargs=0,help='maximum pages to crawl')
 cmdOptParser.add_argument('-mf','--max-floor',type=str,help='maximum floors to crawl (Not implemented)')
 cmdOptParser.add_argument('-l','--list-out',type=str,help='output the url list of pics')
 cmdOptParser.add_argument('-p','--prefix',type=str,help='specify the prefix of pics (default:comic-)',default='comic-')
