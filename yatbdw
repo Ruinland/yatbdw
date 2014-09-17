@@ -11,21 +11,31 @@ cmdOptParser = argparse.ArgumentParser(description='This is a Tieba Pic Crawler'
 cmdOptParser.add_argument('-t','--target',type=str,help='specify the target direcotry (default: creating a dir at pwd , named by thread title)')
 cmdOptParser.add_argument('uri',type=str,help='the uri of the Tieba thread')
 cmdOptParser.add_argument('-mp','--max-page',type=str,help='maximum pages to crawl')
-cmdOptParser.add_argument('-fop','--follow-oringnal-post',nargs=0,help='maximum pages to crawl')
+cmdOptParser.add_argument('-fop','--follow-oringnal-post',action='store_true',help='maximum pages to crawl')
 cmdOptParser.add_argument('-mf','--max-floor',type=str,help='maximum floors to crawl (Not implemented)')
 cmdOptParser.add_argument('-l','--list-out',type=str,help='output the url list of pics')
 cmdOptParser.add_argument('-p','--prefix',type=str,help='specify the prefix of pics (default:comic-)',default='comic-')
 
-def crawlThroughtWholeThread(nEndPage,imgList,opid):
+def crawlThroughtWholeThread(nEndPage,imgList,fOP,opid):
     for nP in list(range(2,int(nEndPage)+1)) :
         #list(range(2,2) will be null list , hence this won't be executed while there's only 1 page
         #print(threadUri+"?pn="+str(nP))
         req = urllib.request.urlopen(threadUri+"?pn="+str(nP))
         soup = bs4.BeautifulSoup(req)
-        getSamePostersImage(soup.find_all("div",class_="l_post"),imgList,opid)
+        postsInPage = soup.find_all("div",class_="l_post")
+        if cmdArgs.follow_oringnal_post :
+            fetchImageList(postsInPage, imgList, getSamePostersImage, opid = uid)
+        
+        else:
+            fetchImageList(postsInPage, imgList, getAllImageOfPage)
 
-def getAllImgaeOfPost(imgList):
-    imgList.extend([ image["src"] for image in soup.find_all("img",class_="BDE_Image")])
+def fetchImageList(postList, imgList, getImageFunc, **kargs):
+    getImageFunc(postList, imgList, **kargs)
+
+def getAllImageOfPage(postList,imgList):
+    #print(postList)
+    for postCur in postList :
+        imgList.extend([ image["src"] for image in postCur.find_all("img",class_="BDE_Image")])
 
 def getSamePostersImage(postList,imgList,opid):
     for postCur in postList :
@@ -64,20 +74,26 @@ def getThreadInfo(threadUri,customMaxPage,followOP):
     uid = json.loads(soup.find("div","l_post")['data-field'])['author']['user_id']
 
     imgSrcList = []
+    postsInPage = soup.find_all("div",class_="l_post")
+    #print(postsInPage)
 
-    getSamePostersImage(soup.find_all("div",class_="l_post"),imgSrcList,uid)
+    if cmdArgs.follow_oringnal_post :
+        fetchImageList(postsInPage, imgSrcList, getSamePostersImage, opid = uid)
+        #print(imgSrcList)
+    
+    else:
+        fetchImageList(postsInPage, imgSrcList, getAllImageOfPage)
+        #print(imgSrcList)
+    
 
-    print("Only download till pg. #"+str(customMaxPage)+" .")
     if customMaxPage != None :
         if customMaxPage <= maxPage :
-            crawlThroughtWholeThread(customMaxPage,imgSrcList)
+            crawlThroughtWholeThread(customMaxPage,imgSrcList,cmdArgs.follow_oringnal_post,uid)
         else :
             print("The maximum page you request is out of bound , which is : "+str(maxPage))
             exit()
     else :
-        crawlThroughtWholeThread(maxPage,imgSrcList,uid)
-    
-    print("This is a debug message :\n",imgSrcList)
+        crawlThroughtWholeThread(maxPage,imgSrcList,cmdArgs.follow_oringnal_post,uid)
 
     return tTile , imgSrcList
 
