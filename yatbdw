@@ -20,11 +20,11 @@ def crawlThroughtWholeThread(nEndPage,imgList,fOP,opid):
     for nP in list(range(2,int(nEndPage)+1)) :
         #list(range(2,2) will be null list , hence this won't be executed while there's only 1 page
         #print(threadUri+"?pn="+str(nP))
-        req = urllib.request.urlopen(threadUri+"?pn="+str(nP))
+        req = urllib.request.urlopen(cmdArgs.uri+"?pn="+str(nP))
         soup = bs4.BeautifulSoup(req)
         postsInPage = soup.find_all("div",class_="l_post")
         if cmdArgs.follow_oringnal_post :
-            fetchImageList(postsInPage, imgList, getSamePostersImage, opid = uid)
+            fetchImageList(postsInPage, imgList, getSamePostersImage, uid = opid)
         
         else:
             fetchImageList(postsInPage, imgList, getAllImageOfPage)
@@ -37,9 +37,9 @@ def getAllImageOfPage(postList,imgList):
     for postCur in postList :
         imgList.extend([ image["src"] for image in postCur.find_all("img",class_="BDE_Image")])
 
-def getSamePostersImage(postList,imgList,opid):
+def getSamePostersImage(postList,imgList,uid):
     for postCur in postList :
-        if opid == json.loads(postCur['data-field'])['author']['user_id'] :
+        if uid == json.loads(postCur['data-field'])['author']['user_id'] :
             imgList.extend( [image['src'] for image in postCur.find_all("img",class_="BDE_Image")] )
 
 def doImageDownload(imgSrcList,imgNamePrefix,targetDir):
@@ -78,7 +78,7 @@ def getThreadInfo(threadUri,customMaxPage,followOP):
     #print(postsInPage)
 
     if cmdArgs.follow_oringnal_post :
-        fetchImageList(postsInPage, imgSrcList, getSamePostersImage, opid = uid)
+        fetchImageList(postsInPage, imgSrcList, getSamePostersImage, uid = uid)
         #print(imgSrcList)
     
     else:
